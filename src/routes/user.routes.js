@@ -11,6 +11,9 @@ router.use(auth);
 // Create new editor (Admin only)
 router.post('/editors', isAdmin, userController.createEditor);
 
+// Get all editors (Admin only)
+router.get('/editors', isAdmin, userController.getAllEditors);
+
 // Get all users (Admin and Editor can view)
 router.get('/', isAdminOrEditor, userController.getAll);
 

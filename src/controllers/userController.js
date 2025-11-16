@@ -82,6 +82,50 @@ const userController = {
     }
   },
 
+  // Get all editors with pagination and filters (Admin only)
+  async getAllEditors(req, res) {
+    try {
+      const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+      const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+      const skip = (page - 1) * limit;
+
+      const filter = { role: 'Éditeur' };
+      
+      if (req.query.isActive !== undefined && req.query.isActive !== '') {
+        filter.isActive = req.query.isActive === 'true';
+      }
+      
+      if (req.query.search) {
+        filter.$or = [
+          { username: { $regex: req.query.search, $options: 'i' } },
+          { email: { $regex: req.query.search, $options: 'i' } }
+        ];
+      }
+
+      const [users, total] = await Promise.all([
+        User.find(filter)
+          .select('-password -refreshToken')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        User.countDocuments(filter)
+      ]);
+
+      return res.json({
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit) || 1
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching editors', error);
+      return res.status(500).json({ error: 'Failed to fetch editors' });
+    }
+  },
+
   // Get all users with pagination and filters
   async getAll(req, res) {
     try {
