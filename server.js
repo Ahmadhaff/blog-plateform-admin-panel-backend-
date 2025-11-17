@@ -30,6 +30,19 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URLS ? process.env.CLIENT_URLS.split(',') : [])
 ].filter(Boolean);
 
+// Handle preflight OPTIONS requests explicitly
+app.options('*', cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman)
@@ -40,9 +53,14 @@ app.use(cors({
       return callback(null, true);
     }
     console.log(`❌ CORS: Blocked origin: ${origin}`);
+    console.log(`✅ Allowed origins:`, allowedOrigins);
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -67,7 +85,33 @@ app.get('/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
   const status = err.statusCode || err.status || 500;
-  res.status(status).json({ error: err.message || 'Internal server error' });
+  
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+  
+  // Don't send error details in production
+  const errorMessage = process.env.NODE_ENV === 'production' 
+    ? 'Internal server error' 
+    : err.message || 'Internal server error';
+  
+  res.status(status).json({ error: errorMessage });
+});
+
+// 404 handler
+app.use((req, res) => {
+  // Set CORS headers for 404 as well
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.status(404).json({ error: 'Route not found' });
 });
 
 // Start server
