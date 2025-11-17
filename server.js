@@ -25,6 +25,7 @@ const allowedOrigins = [
   'http://localhost:4200',  // Main frontend
   'http://localhost:4201',  // Admin panel frontend
   'http://localhost:3000',
+  'https://adminpanelblogapp.netlify.app', // Production admin panel frontend
   process.env.CLIENT_URL,
   ...(process.env.CLIENT_URLS ? process.env.CLIENT_URLS.split(',') : [])
 ].filter(Boolean);
