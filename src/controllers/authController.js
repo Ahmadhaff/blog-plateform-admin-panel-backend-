@@ -9,6 +9,12 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Validate JWT secrets are available
+    if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+      console.error('❌ JWT secrets not configured');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -50,7 +56,8 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Login error:', error);
-    return res.status(500).json({ error: 'Login failed' });
+    console.error('❌ Error stack:', error.stack);
+    return res.status(500).json({ error: 'Login failed. Please try again later.' });
   }
 };
 

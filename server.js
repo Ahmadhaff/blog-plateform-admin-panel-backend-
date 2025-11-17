@@ -14,11 +14,34 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Connect to MongoDB
-connectDB().then(async () => {
-  // Seed admin account after DB connection
-  await seedAdmin();
-});
+// Validate required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+  process.exit(1);
+}
+
+// Connect to MongoDB and start server
+async function startServer() {
+  try {
+    await connectDB();
+    // Seed admin account after DB connection
+    await seedAdmin();
+    
+    // Start server only after DB is connected
+    app.listen(PORT, () => {
+      console.log(`🚀 Admin Panel Server running on port ${PORT}`);
+      console.log(`📍 API: http://localhost:${PORT}/api`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Middleware
 const allowedOrigins = [
@@ -114,9 +137,5 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Admin Panel Server running on port ${PORT}`);
-  console.log(`📍 API: http://localhost:${PORT}/api`);
-});
+// Server will be started after DB connection (see startServer function above)
 
